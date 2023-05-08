@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.Tokens;
+using System.Data;
+using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -131,6 +133,64 @@ namespace mBus.Controllers
             con.Close();
             
             return Ok(busList);
+        }
+        [HttpPost]
+        [Route("bookTicket")]
+        public IActionResult BookBusByReferenceId([FromBody] BookingSchema Details)
+        {
+            con.Open();
+            SqlCommand cmd = new SqlCommand("UpdateBusAndInsertBooking", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            // Add input parameters
+            cmd.Parameters.AddWithValue("@Source", Details.Source);
+            cmd.Parameters.AddWithValue("@Destination", Details.Destination);
+            cmd.Parameters.AddWithValue("@Date", Details.Date);
+            cmd.Parameters.AddWithValue("@Price", Details.Price);
+            cmd.Parameters.AddWithValue("@Id", Details.Id);
+            cmd.Parameters.AddWithValue("@BusId", Details.BusId);
+
+            // Add output parameter
+            SqlParameter outputParam = new SqlParameter("@BookingId", SqlDbType.Int);
+            outputParam.Direction = ParameterDirection.ReturnValue;
+            cmd.Parameters.Add(outputParam);
+
+            cmd.ExecuteNonQuery();
+
+            // Get the output parameter value
+            int bookingId = (int)outputParam.Value;
+
+            return Ok(bookingId);
+
+
+    }
+        [HttpGet]
+        [Route("getBooking")]
+        public IActionResult GetBooking(int Id)
+        {
+            con.Open();
+            SqlCommand cmd = new SqlCommand("select * from Bookings where Id=@Id", con);
+            cmd.Parameters.AddWithValue("@Id", Id);
+            SqlDataReader dr = cmd.ExecuteReader();
+            //return in json directly without creating a class
+            List<object> bookingList = new List<object>();
+            while (dr.Read())
+            {
+                var booking = new
+                {
+                    BookingId = dr["BookingId"].ToString(),
+                    Source = dr["Source"].ToString(),
+                    Destination = dr["Destination"].ToString(),
+                    Date = dr["Date"].ToString(),
+                    Price = dr["Price"].ToString(),
+                    Id = dr["Id"].ToString(),
+                    BusId = dr["BusId"].ToString(),
+                    
+                };
+                bookingList.Add(booking);
+            }
+            con.Close();
+            return Ok(bookingList);
         }
 
     }
